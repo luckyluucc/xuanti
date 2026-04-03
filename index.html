@@ -450,6 +450,9 @@
             <div class="result" id="result">
                 <h3>📌 选题建议</h3>
                 <div class="result-content" id="resultContent"></div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-secondary" onclick="generateMoreTopics()">🔄 继续生成更多选题</button>
+                </div>
             </div>
 
             <div class="btn-group">
@@ -469,6 +472,10 @@
             report: null,
             confirmed: false
         };
+
+        // 当前选题输入（用于继续生成）
+        let currentTopicInput = '';
+        let generatedTopicCount = 0;
 
         // 诊断问题
         const diagnosisQuestions = [
@@ -751,12 +758,35 @@
                 return;
             }
 
+            // 保存当前输入
+            currentTopicInput = input;
+            generatedTopicCount = 0;
+
             // 显示加载状态
             document.getElementById('loading').classList.add('active');
             document.getElementById('result').classList.remove('active');
             document.getElementById('error').classList.remove('active');
 
-            // 构建提示词
+            await generateTopicsInternal(input, 'first');
+        }
+
+        // 继续生成更多选题
+        async function generateMoreTopics() {
+            if (!currentTopicInput) {
+                alert('请先生成选题');
+                return;
+            }
+
+            // 显示加载状态
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('error').classList.remove('active');
+
+            await generateTopicsInternal(currentTopicInput, 'more');
+        }
+
+        // 内部生成函数
+        async function generateTopicsInternal(input, mode) {
+            const startNum = generatedTopicCount + 1;
             const prompt = `你是一位资深的内容营销专家，拥有10年经验，擅长通过"选题四象限方法论"为知识型IP生成高质量选题。
 
 【用户已确认的定位】
@@ -778,12 +808,14 @@ ${input}
 - Q4（垂直人群+垂直选题）：精准转化，直接变现
 
 ## 第二步：选题生成
-为每个适合的象限生成1-2条高质量选题，必须满足以下自检标准：
+为每个适合的象限生成2条高质量选题，必须满足以下自检标准：
 - ✅ 是否贴近用户的目标人群
 - ✅ 是否还原真实场景/痛点
 - ✅ 是否能和核心产品/服务建立连接
 - ✅ 是否符合爆款选题格式
 - ✅ 逻辑是否自洽
+
+${mode === 'more' ? `注意：你已经生成了${generatedTopicCount}个选题，现在请从第${startNum}个选题开始，继续生成新的选题。选题要和之前的不同，提供更多角度和可能性。` : ''}
 
 ## 输出格式
 ### 选题1：[标题]
@@ -834,8 +866,20 @@ ${input}
                 const data = await response.json();
                 const result = data.choices[0].message.content;
 
+                // 更新选题数量
+                generatedTopicCount += 2;
+
                 // 显示结果
-                document.getElementById('resultContent').innerHTML = formatResult(result);
+                if (mode === 'first') {
+                    document.getElementById('resultContent').innerHTML = formatResult(result);
+                } else {
+                    // 追加新选题
+                    const currentContent = document.getElementById('resultContent').innerHTML;
+                    const separator = '<hr style="margin: 30px 0; border: none; border-top: 2px dashed #667eea;">';
+                    const header = '<h3 style="margin-top: 30px;">📌 更多选题建议</h3>';
+                    document.getElementById('resultContent').innerHTML = currentContent + separator + header + formatResult(result);
+                }
+
                 document.getElementById('result').classList.add('active');
 
             } catch (error) {
